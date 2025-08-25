@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>SMS</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="preconnect" href="https://fonts.gstatic" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
     <style>
         :root {
@@ -67,21 +67,37 @@
         .chat-header .contact-info .status-text { font-size: 0.75em; color: rgba(255, 255, 255, 0.8); }
         /* --- COMPACT HEADER UI STYLES END --- */
 
-        #main-content { flex-grow: 1; overflow-y: auto; background-color: var(--theme-content-bg); }
+        #main-content { 
+            flex-grow: 1; 
+            overflow-y: auto; 
+            overflow-x: hidden;
+            background-color: var(--theme-content-bg); 
+        }
         .content-panel { display: none; }
         .content-panel.active { display: block; }
         
         .list-item { display: flex; align-items: center; padding: 0.8rem 1rem; border-bottom: 1px solid var(--theme-border); cursor: pointer; gap: 1rem; }
-        .list-item .avatar { background-color: var(--theme-border); width: 50px; height: 50px; display: flex; align-items: center; justify-content: center; border-radius: 50%; overflow: hidden; }
+        .list-item .avatar { background-color: var(--theme-border); width: 50px; height: 50px; display: flex; align-items: center; justify-content: center; border-radius: 50%; overflow: hidden; flex-shrink: 0; }
         .list-item .avatar img { width: 100%; height: 100%; object-fit: cover; }
-        .list-item .details { flex-grow: 1; }
-        .list-item .details .name { font-weight: 500; }
+        
+        /* ### FINAL UI FIX APPLIED HERE ### */
+        .list-item .details { 
+            flex-grow: 1; 
+            min-width: 0; /* This is the key fix: allows the flex item to shrink properly. */
+        }
+        
+        .list-item .details .name { 
+            font-weight: 500;
+            white-space: nowrap;      /* Prevents name from wrapping to a new line */
+            overflow: hidden;         /* Hides any part of the name that overflows */
+            text-overflow: ellipsis;  /* Adds '...' to a name that is too long */
+        }
         .list-item .details .subtext { color: var(--theme-secondary-text); font-size: 0.9em; }
         .list-item .actions { display: flex; gap: 0.5rem; margin-left: auto; }
         .list-item .actions button { padding: 0.5rem 1rem; border: none; border-radius: 5px; color: white; cursor: pointer; }
         .accept-btn { background-color: var(--theme-success); }
         .reject-btn { background-color: var(--theme-danger); }
-        .list-item .unread-badge { background-color: var(--theme-success); color: white; border-radius: 50%; font-size: 0.75rem; font-weight: bold; padding: 3px 7px; margin-left: auto; }
+        .list-item .unread-badge { background-color: var(--theme-success); color: white; border-radius: 50%; font-size: 0.75rem; font-weight: bold; padding: 3px 7px; margin-left: auto; flex-shrink: 0; }
 
         /* Chat View */
         #chat-messages { flex-grow: 1; padding: 1rem; overflow-y: auto; display: flex; flex-direction: column; gap: 0.25rem; }
@@ -323,8 +339,8 @@
             document.getElementById('video-call-btn').addEventListener('click', () => startCall(true));
             document.getElementById('accept-call-btn').addEventListener('click', acceptCall);
             document.getElementById('reject-call-btn').addEventListener('click', rejectCall);
-            document.getElementById('video-end-call-btn').addEventListener('click', endCall);
-            document.getElementById('voice-end-call-btn').addEventListener('click', endCall);
+            document.getElementById('video-end-call-btn').addEventListener('click', () => endCall());
+            document.getElementById('voice-end-call-btn').addEventListener('click', () => endCall());
             ['video', 'voice'].forEach(type => {
                 document.getElementById(`toggle-${type}-mute-btn`).addEventListener('click', toggleMute);
                 document.getElementById(`toggle-${type}-speaker-btn`).addEventListener('click', toggleSpeaker);
@@ -360,13 +376,11 @@
         
         // --- FINAL, ROBUST WEBRTC CALLING LOGIC ---
 
-        async function createPeerConnection(callRef, otherUserRole) {
+        async function createPeerConnection(callRef, role) {
             peerConnection = new RTCPeerConnection(peerConnectionConfig);
-            
-            // Add local media tracks to the connection
+
             localStream.getTracks().forEach(track => peerConnection.addTrack(track, localStream));
 
-            // Setup remote stream handling
             remoteStream = new MediaStream();
             if (currentCallData.isVideo) {
                 document.getElementById('remote-video').srcObject = remoteStream;
@@ -377,15 +391,15 @@
                 event.streams[0].getTracks().forEach(track => remoteStream.addTrack(track));
             };
 
-            // Queue for remote ICE candidates
             const candidateQueue = [];
-            const remoteCandidatesRef = callRef.child(`${otherUserRole}Candidates`);
-            
-            // Listen for remote ICE candidates
+            let remoteDescriptionSet = false;
+
+            const otherRole = role === 'caller' ? 'callee' : 'caller';
+            const remoteCandidatesRef = callRef.child(`${otherRole}Candidates`);
             remoteCandidatesRef.on('child_added', snapshot => {
                 if (snapshot.exists()) {
                     const candidate = new RTCIceCandidate(snapshot.val());
-                    if (peerConnection.remoteDescription) {
+                    if (remoteDescriptionSet) {
                         peerConnection.addIceCandidate(candidate).catch(e => console.error("Error adding received ICE candidate:", e));
                     } else {
                         candidateQueue.push(candidate);
@@ -393,23 +407,17 @@
                 }
             });
 
-            // Process the queue once the remote description is set
             peerConnection.addEventListener('remotedescriptionset', () => {
-                candidateQueue.forEach(candidate => {
-                    peerConnection.addIceCandidate(candidate).catch(e => console.error("Error adding queued ICE candidate:", e));
-                });
-                candidateQueue.length = 0; // Clear the queue
+                remoteDescriptionSet = true;
+                candidateQueue.forEach(candidate => peerConnection.addIceCandidate(candidate).catch(e => console.error("Error adding queued ICE candidate:", e)));
+                candidateQueue.length = 0;
             });
 
-            // Listen for local ICE candidates and send them to the other user
-            const localCandidatesRef = callRef.child(`${currentCallData.isCaller ? 'caller' : 'callee'}Candidates`);
+            const localCandidatesRef = callRef.child(`${role}Candidates`);
             peerConnection.onicecandidate = event => {
-                if (event.candidate) {
-                    localCandidatesRef.push(event.candidate.toJSON());
-                }
+                if (event.candidate) localCandidatesRef.push(event.candidate.toJSON());
             };
 
-            // Monitor connection state
             peerConnection.onconnectionstatechange = () => {
                 if (peerConnection.connectionState === 'connected') {
                     console.log("Call connected successfully!");
@@ -421,50 +429,43 @@
                     }, 1000);
                 }
                 if (['failed', 'disconnected', 'closed'].includes(peerConnection.connectionState)) {
-                    console.log(`Call state changed to ${peerConnection.connectionState}. Ending call.`);
-                    endCall();
+                    endCall(`Call state changed to ${peerConnection.connectionState}.`);
                 }
             };
         }
 
         async function startCall(isVideo) {
-            if (currentCallData) return; // Prevent starting a new call if one is active
+            if (currentCallData) return;
             const calleeId = currentChatPartner.uid;
             const callRef = db.ref(`activeCalls/${calleeId}`);
             
             currentCallData = { 
-                isVideo, 
-                isCaller: true,
+                isVideo, isCaller: true, callRef,
                 caller: { uid: currentUser.uid, name: currentUser.name, imageUrl: currentUser.imageUrl }, 
-                callee: { uid: calleeId, name: currentChatPartner.name, imageUrl: currentChatPartner.imageUrl },
-                callRef,
-                state: 'starting'
+                callee: { uid: calleeId, name: currentChatPartner.name, imageUrl: currentChatPartner.imageUrl }
             };
             
             try {
                 localStream = await navigator.mediaDevices.getUserMedia({ video: isVideo, audio: true });
                 if (isVideo) document.getElementById('local-video').srcObject = localStream;
 
-                await createPeerConnection(callRef, 'callee');
+                await createPeerConnection(callRef, 'caller');
 
                 const offer = await peerConnection.createOffer();
                 await peerConnection.setLocalDescription(offer);
 
-                const callPayload = { offer, isVideo, callerInfo: currentCallData.caller };
-                await callRef.set(callPayload);
+                await callRef.set({ offer, isVideo, callerInfo: currentCallData.caller });
                 callRef.onDisconnect().remove();
 
-                callRef.on('value', async (snap) => {
+                const answerListener = callRef.on('value', async (snap) => {
                     const data = snap.val();
-                    if (!data && currentCallData) {
-                        endCall("Call was cancelled or does not exist.");
-                        return;
-                    }
+                    if (!data && currentCallData) return endCall("Call cancelled.");
                     if (data?.answer && peerConnection.signalingState !== 'stable') {
                         await peerConnection.setRemoteDescription(new RTCSessionDescription(data.answer));
                         peerConnection.dispatchEvent(new Event('remotedescriptionset'));
                     }
                 });
+                currentCallData.answerListener = answerListener;
 
                 showView(isVideo ? 'video-call-view' : 'voice-call-view');
                 updateCallUI(currentCallData.callee, 'Ringing...');
@@ -481,13 +482,9 @@
                 const callData = snap.val();
                 if (callData?.offer && !currentCallData) {
                     currentCallData = {
-                        isVideo: callData.isVideo,
-                        isCaller: false,
+                        isVideo: callData.isVideo, isCaller: false, callRef: incomingCallRef, offer: callData.offer,
                         caller: callData.callerInfo,
-                        callee: { uid: currentUser.uid, name: currentUser.name, imageUrl: currentUser.imageUrl },
-                        offer: callData.offer,
-                        callRef: incomingCallRef,
-                        state: 'incoming'
+                        callee: { uid: currentUser.uid, name: currentUser.name, imageUrl: currentUser.imageUrl }
                     };
                     const modalInfo = document.getElementById('incoming-caller-info');
                     modalInfo.querySelector('.avatar').innerHTML = `<img src="${currentCallData.caller.imageUrl || DEFAULT_PROFILE_IMAGE}" alt="">`;
@@ -504,13 +501,13 @@
             showModal('incoming-call-modal', false);
             document.getElementById('ringtone').pause();
             const callRef = currentCallData.callRef;
-            callRef.onDisconnect().cancel(); // Prevent auto-cleanup on disconnect now that we've accepted
+            callRef.onDisconnect().cancel();
 
             try {
                 localStream = await navigator.mediaDevices.getUserMedia({ video: currentCallData.isVideo, audio: true });
                 if (currentCallData.isVideo) document.getElementById('local-video').srcObject = localStream;
                 
-                await createPeerConnection(callRef, 'caller');
+                await createPeerConnection(callRef, 'callee');
                 
                 await peerConnection.setRemoteDescription(new RTCSessionDescription(currentCallData.offer));
                 peerConnection.dispatchEvent(new Event('remotedescriptionset'));
@@ -520,9 +517,8 @@
 
                 await callRef.update({ answer });
                 
-                callRef.on('value', snap => { 
-                    if (!snap.exists()) endCall("The other user ended the call."); 
-                });
+                const endListener = callRef.on('value', snap => { if (!snap.exists()) endCall("The other user ended the call."); });
+                currentCallData.endListener = endListener;
                 
                 showView(currentCallData.isVideo ? 'video-call-view' : 'voice-call-view');
                 updateCallUI(currentCallData.caller, 'Connecting...');
@@ -535,9 +531,7 @@
         function rejectCall() {
             showModal('incoming-call-modal', false);
             document.getElementById('ringtone').pause();
-            if (currentCallData?.callRef) {
-                currentCallData.callRef.remove();
-            }
+            if (currentCallData?.callRef) currentCallData.callRef.remove();
             currentCallData = null;
         }
 
@@ -545,22 +539,23 @@
             if (!currentCallData) return;
             console.log(reason);
 
-            const callRef = currentCallData.callRef;
-
-            currentCallData = null; // Nullify state first to prevent re-entry
+            const { callRef, answerListener, endListener } = currentCallData;
+            
+            currentCallData = null; 
 
             if (callRef) {
+                if (answerListener) callRef.off('value', answerListener);
+                if (endListener) callRef.off('value', endListener);
                 callRef.child('callerCandidates').off();
                 callRef.child('calleeCandidates').off();
-                callRef.off();
                 callRef.remove();
             }
             
             if (localStream) localStream.getTracks().forEach(track => track.stop());
             
             if (peerConnection) {
-                peerConnection.onicecandidate = null;
                 peerConnection.ontrack = null;
+                peerConnection.onicecandidate = null;
                 peerConnection.onconnectionstatechange = null;
                 peerConnection.close();
                 peerConnection = null;
@@ -601,4 +596,4 @@
 
     </script>
 </body>
-</html>```
+</html>
