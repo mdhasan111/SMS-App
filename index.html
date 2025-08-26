@@ -5,119 +5,120 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>SMS</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic" crossorigin>
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
     <style>
         :root {
-            --theme-bg: #f0f2f5;
+            --theme-bg: #f4f7f6;
             --theme-content-bg: #ffffff;
-            --theme-header-bg: #007bff; /* Main Blue Color */
+            --theme-header-start: #007bff;
+            --theme-header-end: #0056b3;
             --theme-primary-text: #1c1e21;
             --theme-secondary-text: #606770;
             --theme-accent: #007bff;
-            --theme-border: #dcdfe3;
+            --theme-border: #e9ebee;
             --theme-message-out: #007bff;
             --theme-message-in: #e4e6eb;
             --theme-message-out-text: #ffffff;
             --theme-message-in-text: #1c1e21;
             --theme-success: #28a745;
             --theme-danger: #dc3545;
-            --theme-shadow: rgba(0, 0, 0, 0.1);
+            --theme-shadow: rgba(0, 0, 0, 0.08);
+            --border-radius-sm: 8px;
+            --border-radius-md: 16px;
+            --transition-speed: 0.3s ease;
+        }
+
+        /* --- অ্যানিমেশন --- */
+        @keyframes pop-in {
+            from { opacity: 0; transform: scale(0.95); }
+            to { opacity: 1; transform: scale(1); }
         }
 
         /* Global Styles */
         * { box-sizing: border-box; margin: 0; padding: 0; }
         html, body { height: 100%; width: 100%; overflow: hidden; font-family: 'Roboto', sans-serif; background-color: #d1d7db; display: flex; justify-content: center; align-items: center; }
-        .icon-btn { background: none; border: none; cursor: pointer; padding: 8px; display: flex; align-items: center; justify-content: center; border-radius: 50%; transition: background-color 0.2s ease; }
-        .icon-btn:hover { background-color: rgba(255,255,255,0.1); }
+        .icon-btn { background: none; border: none; cursor: pointer; padding: 8px; display: flex; align-items: center; justify-content: center; border-radius: 50%; transition: background-color var(--transition-speed); }
+        .icon-btn:hover { background-color: rgba(0,0,0,0.05); }
         .icon-btn svg { fill: var(--theme-secondary-text); width: 24px; height: 24px; }
         
         /* Layout */
-        #app-container { width: 100%; height: 100%; max-width: 450px; max-height: 950px; background-color: var(--theme-bg); box-shadow: 0 4px 12px var(--theme-shadow); border-radius: 8px; display: flex; flex-direction: column; overflow: hidden; position: relative; }
+        #app-container { width: 100%; height: 100%; max-width: 450px; max-height: 950px; background-color: var(--theme-bg); box-shadow: 0 8px 32px rgba(0,0,0,0.1); border-radius: var(--border-radius-md); display: flex; flex-direction: column; overflow: hidden; position: relative; }
         .view, .modal { display: none; width: 100%; height: 100%; flex-direction: column; background-color: var(--theme-bg); }
         .view.active, .modal.active { display: flex; }
 
         /* Auth View */
-        #auth-view { justify-content: center; align-items: center; padding: 2rem; text-align: center; background-color: var(--theme-content-bg); }
-        #auth-view h1 { color: var(--theme-accent); font-size: 3rem; margin-bottom: 2rem; }
+        #auth-view { justify-content: center; align-items: center; padding: 2rem; text-align: center; background-color: var(--theme-bg); }
+        #auth-view .auth-card { background: var(--theme-content-bg); padding: 2.5rem; border-radius: var(--border-radius-md); box-shadow: 0 4px 12px var(--theme-shadow); width: 100%; animation: pop-in 0.4s ease backwards; }
+        #auth-view h1 { color: var(--theme-accent); font-size: 3.5rem; margin-bottom: 2rem; font-weight: 700; }
         .auth-form { width: 100%; display: flex; flex-direction: column; gap: 1rem; }
-        .auth-form input { padding: 0.8rem; border: 1px solid var(--theme-border); border-radius: 5px; font-size: 1rem; }
-        .auth-form button { padding: 0.8rem; background-color: var(--theme-accent); color: white; border: none; border-radius: 5px; font-size: 1rem; font-weight: 500; cursor: pointer; }
+        .auth-form input { padding: 0.9rem; border: 1px solid var(--theme-border); border-radius: var(--border-radius-sm); font-size: 1rem; transition: border-color var(--transition-speed); }
+        .auth-form input:focus { border-color: var(--theme-accent); outline: none; }
+        .auth-form button { padding: 0.9rem; background-color: var(--theme-accent); color: white; border: none; border-radius: var(--border-radius-sm); font-size: 1rem; font-weight: 500; cursor: pointer; transition: background-color var(--transition-speed); }
+        .auth-form button:hover { background-color: var(--theme-header-end); }
         .error-message { color: var(--theme-danger); min-height: 1.2em; font-size: 0.9em; }
         #signup-form { display: none; }
 
-        /* --- COMPACT HEADER UI STYLES START --- */
-        .main-header { background-color: var(--theme-header-bg); color: var(--theme-content-bg); flex-shrink: 0; }
-        .header-top { display: flex; justify-content: space-between; align-items: center; padding: 0.5rem 1rem; }
-        .header-top h1 { font-size: 1.4rem; font-weight: 500; color: var(--theme-content-bg); }
+        /* --- Main Header UI Styles --- */
+        .main-header { background: linear-gradient(135deg, var(--theme-header-start), var(--theme-header-end)); color: var(--theme-content-bg); flex-shrink: 0; box-shadow: 0 2px 8px rgba(0,0,0,0.15); }
+        .header-top { display: flex; justify-content: space-between; align-items: center; padding: 0.75rem 1rem; }
+        .header-top h1 { font-size: 1.5rem; font-weight: 700; color: var(--theme-content-bg); }
         .header-top-icons { display: flex; align-items: center; }
         .header-top-icons .icon-btn svg { fill: var(--theme-content-bg); }
+        .header-top-icons .icon-btn:hover { background-color: rgba(255,255,255,0.15); }
         .header-nav { display: flex; justify-content: space-around; }
-        .nav-tab { flex: 1; padding: 0.75rem 0; text-align: center; font-weight: 700; color: rgba(255, 255, 255, 0.7); cursor: pointer; border-bottom: 3px solid transparent; }
+        .nav-tab { flex: 1; padding: 0.85rem 0; text-align: center; font-weight: 700; color: rgba(255, 255, 255, 0.75); cursor: pointer; border-bottom: 4px solid transparent; transition: all var(--transition-speed); }
         .nav-tab.active { color: var(--theme-content-bg); border-bottom-color: var(--theme-content-bg); }
-        .badge { background-color: white; color: var(--theme-accent); border-radius: 50%; font-size: 0.7rem; padding: 1px 5px; margin-left: 5px; font-weight: bold; }
+        .badge { background-color: white; color: var(--theme-accent); border-radius: 50%; font-size: 0.7rem; padding: 2px 6px; margin-left: 5px; font-weight: bold; }
         
-        .chat-header { background-color: var(--theme-header-bg); display: flex; align-items: center; padding: 0.4rem 0.5rem; gap: 0.5rem; color: var(--theme-content-bg); }
-        .chat-header .icon-btn svg, .chat-header-icons .icon-btn svg { fill: var(--theme-content-bg); }
+        .chat-header { background: var(--theme-content-bg); display: flex; align-items: center; padding: 0.5rem 0.75rem; gap: 0.75rem; color: var(--theme-primary-text); border-bottom: 1px solid var(--theme-border); }
+        .chat-header .icon-btn svg { fill: var(--theme-secondary-text); }
         .chat-header-icons { display: flex; align-items: center; margin-left: auto; }
-        .chat-header .avatar { background-color: var(--theme-border); width: 36px; height: 36px; display: flex; align-items: center; justify-content: center; border-radius: 50%; overflow: hidden; }
+        .chat-header .avatar { background-color: var(--theme-border); width: 40px; height: 40px; border-radius: 50%; overflow: hidden; }
         .chat-header .avatar img { width: 100%; height: 100%; object-fit: cover; }
         .chat-header .contact-info { flex-grow: 1; display: flex; flex-direction: column; }
-        .chat-header .contact-info .name { font-weight: 500; font-size: 1.1rem; }
-        .chat-header .contact-info .status-text { font-size: 0.75em; color: rgba(255, 255, 255, 0.8); }
-        /* --- COMPACT HEADER UI STYLES END --- */
+        .chat-header .contact-info .name { font-weight: 500; font-size: 1.15rem; }
+        .chat-header .contact-info .status-text { font-size: 0.8em; color: var(--theme-secondary-text); }
 
-        #main-content { 
-            flex-grow: 1; 
-            overflow-y: auto; 
-            overflow-x: hidden;
-            background-color: var(--theme-content-bg); 
-        }
+        #main-content { flex-grow: 1; overflow-y: auto; overflow-x: hidden; background-color: var(--theme-content-bg); }
         .content-panel { display: none; }
         .content-panel.active { display: block; }
         
-        .list-item { display: flex; align-items: center; padding: 0.8rem 1rem; border-bottom: 1px solid var(--theme-border); cursor: pointer; gap: 1rem; }
-        .list-item .avatar { background-color: var(--theme-border); width: 50px; height: 50px; display: flex; align-items: center; justify-content: center; border-radius: 50%; overflow: hidden; flex-shrink: 0; }
+        .list-item { display: flex; align-items: center; padding: 0.8rem 1rem; border-bottom: 1px solid var(--theme-border); cursor: pointer; gap: 1rem; transition: background-color var(--transition-speed); }
+        .list-item:hover { background-color: var(--theme-bg); }
+        .list-item .avatar { background-color: var(--theme-border); width: 54px; height: 54px; border-radius: 50%; overflow: hidden; flex-shrink: 0; }
         .list-item .avatar img { width: 100%; height: 100%; object-fit: cover; }
         
-        /* ### FINAL UI FIX APPLIED HERE ### */
-        .list-item .details { 
-            flex-grow: 1; 
-            min-width: 0; /* This is the key fix: allows the flex item to shrink properly. */
-        }
-        
-        .list-item .details .name { 
-            font-weight: 500;
-            white-space: nowrap;      /* Prevents name from wrapping to a new line */
-            overflow: hidden;         /* Hides any part of the name that overflows */
-            text-overflow: ellipsis;  /* Adds '...' to a name that is too long */
-        }
+        .list-item .details { flex-grow: 1; min-width: 0; }
+        .list-item .details .name { font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
         .list-item .details .subtext { color: var(--theme-secondary-text); font-size: 0.9em; }
         .list-item .actions { display: flex; gap: 0.5rem; margin-left: auto; }
-        .list-item .actions button { padding: 0.5rem 1rem; border: none; border-radius: 5px; color: white; cursor: pointer; }
+        .list-item .actions button { padding: 0.5rem 1rem; border: none; border-radius: var(--border-radius-sm); color: white; cursor: pointer; }
         .accept-btn { background-color: var(--theme-success); }
         .reject-btn { background-color: var(--theme-danger); }
-        .list-item .unread-badge { background-color: var(--theme-success); color: white; border-radius: 50%; font-size: 0.75rem; font-weight: bold; padding: 3px 7px; margin-left: auto; flex-shrink: 0; }
+        .list-item .unread-badge { background-color: var(--theme-success); color: white; border-radius: 50%; font-size: 0.75rem; font-weight: bold; padding: 4px 8px; margin-left: auto; flex-shrink: 0; }
 
         /* Chat View */
-        #chat-messages { flex-grow: 1; padding: 1rem; overflow-y: auto; display: flex; flex-direction: column; gap: 0.25rem; }
-        .message-bubble { max-width: 75%; padding: 0.6rem 1rem; border-radius: 18px; word-wrap: break-word; }
-        .message-sent { align-self: flex-end; background-color: var(--theme-message-out); color: var(--theme-message-out-text); border-bottom-right-radius: 4px; }
-        .message-received { align-self: flex-start; background-color: var(--theme-message-in); color: var(--theme-message-in-text); border-bottom-left-radius: 4px; }
-        #chat-input-container { display: flex; align-items: center; padding: 0.5rem; gap: 0.5rem; background-color: var(--theme-content-bg); border-top: 1px solid var(--theme-border); }
-        #chat-input { flex-grow: 1; padding: 0.8rem; border: none; border-radius: 20px; font-size: 1rem; background-color: var(--theme-bg); }
-        #chat-send-btn { background-color: var(--theme-accent); border-radius: 50%; padding: 0.8rem; }
+        #chat-view { background: var(--theme-bg); }
+        #chat-messages { flex-grow: 1; padding: 1rem; overflow-y: auto; display: flex; flex-direction: column; gap: 0.5rem; }
+        .message-bubble { max-width: 75%; padding: 0.75rem 1.1rem; border-radius: 22px; word-wrap: break-word; line-height: 1.4; box-shadow: 0 1px 2px var(--theme-shadow); }
+        .message-sent { align-self: flex-end; background-color: var(--theme-message-out); color: var(--theme-message-out-text); border-bottom-right-radius: 6px; }
+        .message-received { align-self: flex-start; background-color: var(--theme-message-in); color: var(--theme-message-in-text); border-bottom-left-radius: 6px; }
+        #chat-input-container { display: flex; align-items: center; padding: 0.75rem; gap: 0.75rem; background-color: var(--theme-content-bg); border-top: 1px solid var(--theme-border); }
+        #chat-input { flex-grow: 1; padding: 0.9rem; border: none; border-radius: 24px; font-size: 1rem; background-color: var(--theme-bg); }
+        #chat-input:focus { outline: none; }
+        #chat-send-btn { background-color: var(--theme-accent); border-radius: 50%; padding: 0.9rem; }
         #chat-send-btn svg { fill: white; }
 
         /* Call View */
         .call-view { position: absolute; top: 0; left: 0; right: 0; bottom: 0; background-color: #222; }
         #remote-video { width: 100%; height: 100%; object-fit: cover; background-color: #111; }
-        #local-video { position: absolute; bottom: 150px; right: 20px; width: 120px; height: 160px; border-radius: 8px; z-index: 3; border: 2px solid rgba(255,255,255,0.2); }
+        #local-video { position: absolute; bottom: 150px; right: 20px; width: 120px; height: 160px; border-radius: var(--border-radius-sm); z-index: 3; border: 2px solid rgba(255,255,255,0.2); }
         .call-overlay { position: absolute; top: 0; left: 0; right: 0; bottom: 0; display: flex; flex-direction: column; justify-content: space-between; padding: 2rem; z-index: 2; background: linear-gradient(to bottom, rgba(0,0,0,0.6) 0%, transparent 40%, transparent 60%, rgba(0,0,0,0.8) 100%); }
         .caller-info { text-align: center; color: white; }
         .caller-info .avatar { margin: 0 auto; width: 120px; height: 120px; border-radius: 50%; background-color: rgba(255,255,255,0.1); display: flex; align-items: center; justify-content: center; overflow: hidden; }
         .caller-info .avatar img { width: 100%; height: 100%; object-fit: cover; }
-        .caller-info .name { font-size: 2.2rem; margin-top: 1rem; }
+        .caller-info .name { font-size: 2.4rem; margin-top: 1rem; font-weight: 500; }
         .caller-info .status { font-size: 1.1rem; min-height: 20px; }
         .call-controls { display: flex; justify-content: center; align-items: center; gap: 1rem; padding-bottom: 2rem; }
         .call-controls .icon-btn { width: 60px; height: 60px; background-color: rgba(255, 255, 255, 0.2); }
@@ -128,42 +129,63 @@
         
         /* Modal Styles */
         .modal { position: absolute; top: 0; left: 0; background-color: rgba(0, 0, 0, 0.5); justify-content: center; align-items: center; padding: 1rem; z-index: 10; }
-        .modal-content { background-color: white; padding: 2rem; border-radius: 8px; width: 100%; max-width: 400px; display: flex; flex-direction: column; gap: 1rem; }
+        .modal-content { background-color: white; padding: 1.5rem; border-radius: var(--border-radius-md); width: 100%; max-width: 400px; display: flex; flex-direction: column; gap: 1rem; box-shadow: 0 8px 32px rgba(0,0,0,0.15); animation: pop-in var(--transition-speed) backwards; }
         #incoming-call-modal .caller-info .avatar { width: 100px; height: 100px; }
-        #incoming-call-modal .caller-info { color: #1c1e21; } /* Make text visible on white background */
+        #incoming-call-modal .caller-info { color: #1c1e21; }
         #incoming-call-modal .accept-call-btn { background-color: var(--theme-success); }
-        #profile-view-modal #profile-image-container { text-align: center; margin-bottom: 1rem; }
-        #profile-view-modal #profile-image-display { width: 100px; height: 100px; border-radius: 50%; object-fit: cover; border: 3px solid var(--theme-border); }
-        #profile-view-modal .profile-field { margin-bottom: 1rem; }
-        #profile-view-modal .profile-field strong { display: block; margin-bottom: 4px; color: var(--theme-secondary-text); }
-        #profile-view-modal .profile-field .edit-name-container { display: none; gap: 10px; align-items: center; }
-        #profile-view-modal #edit-name-btn { background: none; border: none; color: var(--theme-accent); cursor: pointer; margin-left: 10px; }
+        
+        /* --- Profile Modal UI --- */
+        #profile-view-modal .modal-content { padding: 0; overflow: hidden; }
+        #profile-view-modal h2 { font-size: 1.2rem; padding: 1.2rem 1.5rem; margin: 0; border-bottom: 1px solid var(--theme-border); }
+        .profile-header { text-align: center; padding: 2rem 1rem; background-color: var(--theme-bg); }
+        #profile-image-display { width: 120px; height: 120px; border-radius: 50%; object-fit: cover; border: 4px solid var(--theme-content-bg); box-shadow: 0 2px 4px var(--theme-shadow); }
+        #profile-name-container { display: flex; align-items: center; justify-content: center; gap: 0.5rem; margin-top: 1rem; }
+        #profile-name-container h3 { font-size: 1.5rem; margin: 0; color: var(--theme-primary-text); }
+        #profile-name-container #edit-name-btn { background: none; border: none; cursor: pointer; padding: 4px; }
+        #profile-name-container #edit-name-btn svg { width: 20px; height: 20px; fill: var(--theme-secondary-text); }
+        #profile-username-display { color: var(--theme-secondary-text); margin-top: 0.25rem; font-size: 1rem; }
+        #user-info { padding: 0 1.5rem 1rem; }
+        #profile-view-modal .profile-field { padding: 1rem 0; border-bottom: 1px solid var(--theme-border); }
+        #profile-view-modal .profile-field:last-child { border-bottom: none; }
+        #profile-view-modal .profile-field strong { display: block; margin-bottom: 8px; color: var(--theme-secondary-text); font-size: 0.8rem; text-transform: uppercase; }
+        #profile-view-modal .profile-field span { font-size: 1rem; color: var(--theme-primary-text); }
+        #profile-view-modal .edit-name-container { display: none; gap: 10px; align-items: center; margin-top: 0.5rem; }
+        #profile-view-modal input[type="text"], #profile-view-modal input[type="url"] { width: 100%; padding: 0.7rem; border: 1px solid var(--theme-border); border-radius: var(--border-radius-sm); font-size: 1rem; background-color: var(--theme-bg); }
+        #profile-view-modal button { border-radius: var(--border-radius-sm); padding: 0.7rem 1rem; font-weight: 500; font-size: 0.9rem; cursor: pointer; border: none; }
+        #profile-view-modal #save-name-btn, #profile-view-modal #save-image-btn { background-color: var(--theme-accent); color: white; }
+        .profile-actions { padding: 0 1.5rem 1.5rem; display: flex; flex-direction: column; gap: 0.5rem; }
+        .profile-actions button { width: 100%; }
+        #logout-btn { background-color: var(--theme-danger); color: white; }
+        #close-profile-modal-btn { background-color: var(--theme-bg); color: var(--theme-primary-text); }
+
     </style>
 </head>
 <body>
     <div id="app-container">
         <!-- Auth View -->
         <div id="auth-view" class="view active">
-            <h1>SMS</h1>
-            <form id="login-form" class="auth-form">
-                <h2>Login</h2>
-                <input type="email" id="login-email" placeholder="Email" required>
-                <input type="password" id="login-password" placeholder="Password" required>
-                <div id="login-error" class="error-message"></div>
-                <button type="submit">Login</button>
-                <p>No account? <a id="show-signup">Sign Up</a></p>
-            </form>
-            <form id="signup-form" class="auth-form" style="display: none;">
-                <h2>Sign Up</h2>
-                <input type="text" id="signup-name" placeholder="Full Name" required>
-                <input type="text" id="signup-username" placeholder="Username (Your Unique ID)" required>
-                <input type="email" id="signup-email" placeholder="Email" required>
-                <input type="password" id="signup-password" placeholder="Password" required>
-                <input type="url" id="signup-image-url" placeholder="Profile Image URL (Optional)">
-                <div id="signup-error" class="error-message"></div>
-                <button type="submit">Sign Up</button>
-                <p>Have an account? <a id="show-login">Log In</a></p>
-            </form>
+            <div class="auth-card">
+                <h1>SMS</h1>
+                <form id="login-form" class="auth-form">
+                    <h2>Login</h2>
+                    <input type="email" id="login-email" placeholder="Email" required>
+                    <input type="password" id="login-password" placeholder="Password" required>
+                    <div id="login-error" class="error-message"></div>
+                    <button type="submit">Login</button>
+                    <p>No account? <a href="#" id="show-signup">Sign Up</a></p>
+                </form>
+                <form id="signup-form" class="auth-form" style="display: none;">
+                    <h2>Sign Up</h2>
+                    <input type="text" id="signup-name" placeholder="Full Name" required>
+                    <input type="text" id="signup-username" placeholder="Username (Your Unique ID)" required>
+                    <input type="email" id="signup-email" placeholder="Email" required>
+                    <input type="password" id="signup-password" placeholder="Password" required>
+                    <input type="url" id="signup-image-url" placeholder="Profile Image URL (Optional)">
+                    <div id="signup-error" class="error-message"></div>
+                    <button type="submit">Sign Up</button>
+                    <p>Have an account? <a href="#" id="show-login">Log In</a></p>
+                </form>
+            </div>
         </div>
 
         <!-- Main App View -->
@@ -246,24 +268,49 @@
                 <button id="cancel-add-friend-btn" class="modal-cancel-btn">Cancel</button>
             </div>
         </div>
+
         <div id="profile-view-modal" class="modal">
             <div class="modal-content">
                 <h2>Profile & Settings</h2>
-                <div id="profile-image-container">
+                <div class="profile-header">
                     <img id="profile-image-display" src="" alt="Profile">
-                </div>
-                <div id="user-info">
-                    <div class="profile-field"><strong>Name</strong><span id="profile-name-display"></span><button id="edit-name-btn">✏️</button>
-                        <div class="edit-name-container"><input type="text" id="profile-name-input"><button id="save-name-btn">Save</button></div>
+                    <div id="profile-name-container">
+                        <h3 id="profile-name-display"></h3>
+                        <button id="edit-name-btn" class="icon-btn">
+                            <svg viewBox="0 0 24 24"><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34a.9959.9959 0 0 0-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"></path></svg>
+                        </button>
                     </div>
-                    <div class="profile-field"><strong>Username (ID)</strong><span id="profile-username-display"></span></div>
-                    <div class="profile-field"><strong>Email</strong><span id="profile-email-display"></span></div>
-                    <div class="profile-field"><strong>Update Profile Image</strong><input type="url" id="profile-image-input" placeholder="New Image URL"><button id="save-image-btn" style="margin-top: 8px;">Save Image</button></div>
+                     <p id="profile-username-display"></p>
                 </div>
-                <button id="logout-btn" style="background-color: var(--theme-danger);">Logout</button>
-                <button id="close-profile-modal-btn" class="modal-cancel-btn">Close</button>
+
+                <div id="user-info">
+                     <div class="edit-name-container profile-field">
+                         <strong>Edit Name</strong>
+                         <input type="text" id="profile-name-input" placeholder="Enter new name">
+                         <button id="save-name-btn">Save</button>
+                    </div>
+                    <div class="profile-field">
+                        <strong>Username (ID)</strong>
+                        <span id="profile-username-display-field"></span>
+                    </div>
+                    <div class="profile-field">
+                        <strong>Email</strong>
+                        <span id="profile-email-display"></span>
+                    </div>
+                    <div class="profile-field">
+                        <strong>Update Profile Image</strong>
+                        <input type="url" id="profile-image-input" placeholder="New Image URL">
+                        <button id="save-image-btn" style="margin-top: 8px;">Save Image</button>
+                    </div>
+                </div>
+
+                <div class="profile-actions">
+                    <button id="logout-btn">Logout</button>
+                    <button id="close-profile-modal-btn" class="modal-cancel-btn">Close</button>
+                </div>
             </div>
         </div>
+
         <div id="incoming-call-modal" class="modal">
             <div class="modal-content">
                 <div id="incoming-caller-info" class="caller-info">
@@ -319,8 +366,8 @@
                 if (user) { db.ref(`users/${user.uid}`).on('value', snap => { if (snap.exists()) { currentUser = { uid: user.uid, ...snap.val() }; initializeAppForUser(); showView('main-view'); showPanel('home-content'); } }); } 
                 else { currentUser = null; cleanupListeners(); showView('auth-view'); }
             });
-            document.getElementById('show-signup').addEventListener('click', () => { document.getElementById('login-form').style.display = 'none'; document.getElementById('signup-form').style.display = 'flex'; });
-            document.getElementById('show-login').addEventListener('click', () => { document.getElementById('signup-form').style.display = 'none'; document.getElementById('login-form').style.display = 'flex'; });
+            document.getElementById('show-signup').addEventListener('click', (e) => { e.preventDefault(); document.getElementById('login-form').style.display = 'none'; document.getElementById('signup-form').style.display = 'flex'; });
+            document.getElementById('show-login').addEventListener('click', (e) => { e.preventDefault(); document.getElementById('signup-form').style.display = 'none'; document.getElementById('login-form').style.display = 'flex'; });
             document.getElementById('login-form').addEventListener('submit', e => { e.preventDefault(); auth.signInWithEmailAndPassword(document.getElementById('login-email').value, document.getElementById('login-password').value).catch(err => document.getElementById('login-error').textContent = err.message); });
             document.getElementById('signup-form').addEventListener('submit', handleSignUp);
             document.getElementById('logout-btn').addEventListener('click', () => { auth.signOut(); showModal('profile-view-modal', false); });
@@ -330,7 +377,7 @@
             document.getElementById('send-friend-request-btn').addEventListener('click', sendFriendRequest);
             document.getElementById('menu-btn').addEventListener('click', openProfileModal);
             document.getElementById('close-profile-modal-btn').addEventListener('click', () => showModal('profile-view-modal', false));
-            document.getElementById('edit-name-btn').addEventListener('click', () => { document.querySelector('.edit-name-container').style.display = 'flex'; document.getElementById('profile-name-input').value = currentUser.name; });
+            document.getElementById('edit-name-btn').addEventListener('click', () => { document.querySelector('.edit-name-container').style.display = 'block'; document.getElementById('profile-name-input').value = currentUser.name; });
             document.getElementById('save-name-btn').addEventListener('click', updateUserProfileName);
             document.getElementById('save-image-btn').addEventListener('click', updateUserProfileImage);
             document.getElementById('back-to-main-btn').addEventListener('click', () => { showView('main-view'); if (currentChatId) db.ref(`messages/${currentChatId}`).off(); currentChatId = null; });
@@ -353,7 +400,16 @@
         function setupPresenceSystem() { const statusRef = db.ref(`/status/${currentUser.uid}`); db.ref('.info/connected').on('value', snap => { if (snap.val() === true) { statusRef.onDisconnect().set({ isOnline: false, lastSeen: firebase.database.ServerValue.TIMESTAMP }).then(() => statusRef.set({ isOnline: true, lastSeen: firebase.database.ServerValue.TIMESTAMP })); } }); }
 
         async function handleSignUp(e) { e.preventDefault(); const name = document.getElementById('signup-name').value.trim(); const username = document.getElementById('signup-username').value.trim().toLowerCase(); const email = document.getElementById('signup-email').value.trim(); const password = document.getElementById('signup-password').value; const imageUrl = document.getElementById('signup-image-url').value.trim(); const errorEl = document.getElementById('signup-error'); if (!/^[a-z0-9_]{3,15}$/.test(username)) { return errorEl.textContent = "Username: 3-15 chars (a-z, 0-9, _)."; } if (!name) { return errorEl.textContent = "Please enter your full name."; } const usernameSnap = await db.ref(`usernames/${username}`).once('value'); if (usernameSnap.exists()) { return errorEl.textContent = "This username is already taken."; } try { const cred = await auth.createUserWithEmailAndPassword(email, password); const userProfile = { name, username, email, imageUrl: imageUrl || "" }; await db.ref(`users/${cred.user.uid}`).set(userProfile); await db.ref(`usernames/${username}`).set(cred.user.uid); } catch (err) { errorEl.textContent = err.message; } }
-        function openProfileModal() { document.getElementById('profile-image-display').src = currentUser.imageUrl || DEFAULT_PROFILE_IMAGE; document.getElementById('profile-name-display').textContent = currentUser.name; document.getElementById('profile-username-display').textContent = `@${currentUser.username}`; document.getElementById('profile-email-display').textContent = currentUser.email; document.querySelector('.edit-name-container').style.display = 'none'; showModal('profile-view-modal'); }
+        
+        function openProfileModal() { 
+            document.getElementById('profile-image-display').src = currentUser.imageUrl || DEFAULT_PROFILE_IMAGE; 
+            document.getElementById('profile-name-display').textContent = currentUser.name; 
+            document.getElementById('profile-username-display').textContent = `@${currentUser.username}`; 
+            document.getElementById('profile-username-display-field').textContent = `@${currentUser.username}`;
+            document.getElementById('profile-email-display').textContent = currentUser.email; 
+            document.querySelector('.edit-name-container').style.display = 'none'; 
+            showModal('profile-view-modal'); 
+        }
         function updateUserProfileName() { const newName = document.getElementById('profile-name-input').value.trim(); if (newName && newName !== currentUser.name) { db.ref(`users/${currentUser.uid}/name`).set(newName); document.querySelector('.edit-name-container').style.display = 'none'; } }
         function updateUserProfileImage() { const newUrl = document.getElementById('profile-image-input').value.trim(); if (newUrl) { db.ref(`users/${currentUser.uid}/imageUrl`).set(newUrl).then(() => { document.getElementById('profile-image-input').value = ''; alert('Image updated!'); }); } }
         
