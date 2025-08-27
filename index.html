@@ -321,7 +321,35 @@
             });
             document.getElementById('show-signup').addEventListener('click', () => { document.getElementById('login-form').style.display = 'none'; document.getElementById('signup-form').style.display = 'flex'; });
             document.getElementById('show-login').addEventListener('click', () => { document.getElementById('signup-form').style.display = 'none'; document.getElementById('login-form').style.display = 'flex'; });
-            document.getElementById('login-form').addEventListener('submit', e => { e.preventDefault(); auth.signInWithEmailAndPassword(document.getElementById('login-email').value, document.getElementById('login-password').value).catch(err => document.getElementById('login-error').textContent = err.message); });
+            
+            // --- MODIFIED LOGIN HANDLER ---
+            document.getElementById('login-form').addEventListener('submit', e => {
+                e.preventDefault();
+                const email = document.getElementById('login-email').value;
+                const password = document.getElementById('login-password').value;
+                const errorEl = document.getElementById('login-error');
+                errorEl.textContent = ''; // Clear previous errors
+
+                auth.signInWithEmailAndPassword(email, password)
+                    .catch(err => {
+                        console.error("Login Error Code:", err.code); // For debugging
+                        switch (err.code) {
+                            case 'auth/invalid-credential':
+                            case 'auth/user-not-found':
+                            case 'auth/wrong-password':
+                            case 'auth/invalid-email':
+                                errorEl.textContent = "আপনার ইমেল বা পাসওয়ার্ড সঠিক নয়।";
+                                break;
+                            case 'auth/too-many-requests':
+                                errorEl.textContent = "অনেকবার চেষ্টার কারণে আপনার অ্যাকাউন্টটি কিছুক্ষণের জন্য ব্লক করা হয়েছে।";
+                                break;
+                            default:
+                                errorEl.textContent = "আপনার কোন অ্যাকাউন্ট নেই, এখনই সাইন আপ করুন।";
+                                break;
+                        }
+                    });
+            });
+
             document.getElementById('signup-form').addEventListener('submit', handleSignUp);
             document.getElementById('logout-btn').addEventListener('click', () => { auth.signOut(); showModal('profile-view-modal', false); });
             ['home', 'notifications', 'calls'].forEach(panel => document.getElementById(`nav-${panel}`).addEventListener('click', () => showPanel(`${panel}-content`)));
@@ -383,7 +411,6 @@
             showModal('profile-view-modal'); 
         }
         
-        // --- MODIFIED FUNCTION ---
         async function updateUserProfileName() {
             const newName = document.getElementById('profile-name-input').value.trim();
             if (newName && newName !== currentUser.name) {
@@ -408,7 +435,6 @@
             }
         }
         
-        // --- MODIFIED FUNCTION ---
         async function updateUserProfileImage() {
             const newUrl = document.getElementById('profile-image-input').value.trim();
             if (newUrl) {
