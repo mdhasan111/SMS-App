@@ -3,14 +3,14 @@ importScripts('https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js');
 importScripts('https://www.gstatic.com/firebasejs/8.10.1/firebase-messaging.js');
 
 // আপনার Firebase প্রোজেক্ট কনফিগারেশন এখানে যোগ করুন
-const firebaseConfig = { 
-    apiKey: "AIzaSyBkjWUY9kWP28Hgu2HDd9jge_d8-YV5RI4", 
-    authDomain: "calling-app-6df8a.firebaseapp.com", 
-    databaseURL: "https://calling-app-6df8a-default-rtdb.firebaseio.com", 
-    projectId: "calling-app-6df8a", 
-    storageBucket: "calling-app-6df8a.firebasestorage.app", 
-    messagingSenderId: "756155662995", 
-    appId: "1:756155662995:web:46d61e5f14c3224ceac366" 
+const firebaseConfig = {
+  apiKey: "AIzaSyBVMR27muXlAJ2t8WkxAwTLVVJfpVDP4Zs",
+  authDomain: "calling-app-16370.firebaseapp.com",
+  databaseURL: "https://calling-app-16370-default-rtdb.firebaseio.com",
+  projectId: "calling-app-16370",
+  storageBucket: "calling-app-16370.firebasestorage.app",
+  messagingSenderId: "363225713231",
+  appId: "1:363225713231:web:f1778dbf2846fed71f783a"
 };
 
 // Firebase শুরু করুন
