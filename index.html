@@ -286,15 +286,15 @@
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-messaging.js"></script>
 
     <script>
-        const firebaseConfig = {
-  apiKey: "AIzaSyBVMR27muXlAJ2t8WkxAwTLVVJfpVDP4Zs",
-  authDomain: "calling-app-16370.firebaseapp.com",
-  databaseURL: "https://calling-app-16370-default-rtdb.firebaseio.com",
-  projectId: "calling-app-16370",
-  storageBucket: "calling-app-16370.firebasestorage.app",
-  messagingSenderId: "363225713231",
-  appId: "1:363225713231:web:f1778dbf2846fed71f783a"
-};
+        const firebaseConfig = { 
+            apiKey: "AIzaSyBkjWUY9kWP28Hgu2HDd9jge_d8-YV5RI4", 
+            authDomain: "calling-app-6df8a.firebaseapp.com", 
+            databaseURL: "https://calling-app-6df8a-default-rtdb.firebaseio.com", 
+            projectId: "calling-app-6df8a", 
+            storageBucket: "calling-app-6df8a.firebasestorage.app", 
+            messagingSenderId: "756155662995", 
+            appId: "1:756155662995:web:46d61e5f14c3224ceac366" 
+        };
         
         firebase.initializeApp(firebaseConfig);
         const auth = firebase.auth();
@@ -373,9 +373,65 @@
         }
 
         async function handleSignUp(e) { e.preventDefault(); const name = document.getElementById('signup-name').value.trim(); const username = document.getElementById('signup-username').value.trim().toLowerCase(); const email = document.getElementById('signup-email').value.trim(); const password = document.getElementById('signup-password').value; const imageUrl = document.getElementById('signup-image-url').value.trim(); const errorEl = document.getElementById('signup-error'); if (!/^[a-z0-9_]{3,15}$/.test(username)) { return errorEl.textContent = "Username: 3-15 chars (a-z, 0-9, _)."; } if (!name) { return errorEl.textContent = "Please enter your full name."; } const usernameSnap = await db.ref(`usernames/${username}`).once('value'); if (usernameSnap.exists()) { return errorEl.textContent = "This username is already taken."; } try { const cred = await auth.createUserWithEmailAndPassword(email, password); const userProfile = { name, username, email, imageUrl: imageUrl || "" }; await db.ref(`users/${cred.user.uid}`).set(userProfile); await db.ref(`usernames/${username}`).set(cred.user.uid); } catch (err) { errorEl.textContent = err.message; } }
-        function openProfileModal() { document.getElementById('profile-image-display').src = currentUser.imageUrl || DEFAULT_PROFILE_IMAGE; document.getElementById('profile-name-display').textContent = currentUser.name; document.getElementById('profile-username-display').textContent = `@${currentUser.username}`; document.getElementById('profile-email-display').textContent = currentUser.email; document.querySelector('.edit-name-container').style.display = 'none'; showModal('profile-view-modal'); }
-        function updateUserProfileName() { const newName = document.getElementById('profile-name-input').value.trim(); if (newName && newName !== currentUser.name) { db.ref(`users/${currentUser.uid}/name`).set(newName); document.querySelector('.edit-name-container').style.display = 'none'; } }
-        function updateUserProfileImage() { const newUrl = document.getElementById('profile-image-input').value.trim(); if (newUrl) { db.ref(`users/${currentUser.uid}/imageUrl`).set(newUrl).then(() => { document.getElementById('profile-image-input').value = ''; alert('Image updated!'); }); } }
+        
+        function openProfileModal() { 
+            document.getElementById('profile-image-display').src = currentUser.imageUrl || DEFAULT_PROFILE_IMAGE; 
+            document.getElementById('profile-name-display').textContent = currentUser.name; 
+            document.getElementById('profile-username-display').textContent = `@${currentUser.username}`; 
+            document.getElementById('profile-email-display').textContent = currentUser.email; 
+            document.querySelector('.edit-name-container').style.display = 'none'; 
+            showModal('profile-view-modal'); 
+        }
+        
+        // --- MODIFIED FUNCTION ---
+        async function updateUserProfileName() {
+            const newName = document.getElementById('profile-name-input').value.trim();
+            if (newName && newName !== currentUser.name) {
+                const myUid = currentUser.uid;
+                const updates = {};
+                updates[`/users/${myUid}/name`] = newName;
+
+                if (currentUser.contacts) {
+                    Object.keys(currentUser.contacts).forEach(contactUid => {
+                        updates[`/users/${contactUid}/contacts/${myUid}/name`] = newName;
+                    });
+                }
+                
+                try {
+                    await db.ref().update(updates);
+                    document.querySelector('.edit-name-container').style.display = 'none';
+                    alert('Name updated successfully!');
+                } catch (error) {
+                    console.error("Error updating name: ", error);
+                    alert('Failed to update name.');
+                }
+            }
+        }
+        
+        // --- MODIFIED FUNCTION ---
+        async function updateUserProfileImage() {
+            const newUrl = document.getElementById('profile-image-input').value.trim();
+            if (newUrl) {
+                const myUid = currentUser.uid;
+                const updates = {};
+                updates[`/users/${myUid}/imageUrl`] = newUrl;
+
+                if (currentUser.contacts) {
+                    Object.keys(currentUser.contacts).forEach(contactUid => {
+                        updates[`/users/${contactUid}/contacts/${myUid}/imageUrl`] = newUrl;
+                    });
+                }
+
+                try {
+                    await db.ref().update(updates);
+                    document.getElementById('profile-image-input').value = '';
+                    alert('Image updated successfully!');
+                } catch (error) {
+                    console.error("Error updating image: ", error);
+                    alert('Failed to update image.');
+                }
+            }
+        }
         
         async function sendFriendRequest() { const friendUsername = document.getElementById('friend-id-input').value.trim().toLowerCase(); if (!friendUsername || friendUsername === currentUser.username) return; const usernameSnap = await db.ref(`usernames/${friendUsername}`).once('value'); if (usernameSnap.exists()) { const uid = usernameSnap.val(); if (currentUser.contacts && currentUser.contacts[uid]) return alert('Already in contacts.'); db.ref(`requests/${uid}/${currentUser.uid}`).set({ fromName: currentUser.name, fromUid: currentUser.uid, fromImageUrl: currentUser.imageUrl || "" }); showModal('add-friend-modal', false); alert('Friend request sent!'); } else { alert('Username not found.'); } }
         function listenForFriendRequests() { db.ref(`requests/${currentUser.uid}`).on('value', snap => { const container = document.getElementById('notifications-content'); const badge = document.getElementById('updates-badge'); container.innerHTML = '<h2>Friend Requests</h2>'; const requests = snap.val(); if (requests && Object.keys(requests).length > 0) { badge.textContent = Object.keys(requests).length; badge.style.display = 'inline-block'; Object.entries(requests).forEach(([uid, req]) => { const el = document.createElement('div'); el.className = 'list-item'; el.innerHTML = `<div class="avatar"><img src="${req.fromImageUrl || DEFAULT_PROFILE_IMAGE}" alt=""></div> <div class="details"><div class="name">${req.fromName}</div><div class="subtext">Wants to be your contact.</div></div> <div class="actions"><button class="accept-btn" data-uid="${uid}">Accept</button><button class="reject-btn" data-uid="${uid}">Reject</button></div>`; container.appendChild(el); }); } else { badge.style.display = 'none'; container.innerHTML += '<p>No new friend requests.</p>'; } document.querySelectorAll('.accept-btn').forEach(b => b.onclick = () => handleFriendRequest(b.dataset.uid, true)); document.querySelectorAll('.reject-btn').forEach(b => b.onclick = () => handleFriendRequest(b.dataset.uid, false)); }); }
@@ -477,33 +533,6 @@
                     }
                 });
                 currentCallData.answerListener = answerListener;
-                
-                // <<< নতুন সংযোজন: পুশ নোটিফিকেশন পাঠানোর জন্য এখানে লজিক যোগ করতে হবে >>>
-                // এটি একটি Firebase Cloud Function এর মাধ্যমে করা উচিত।
-                // ক্লাউড ফাংশনটি activeCalls/{calleeId} পাথে নতুন কল তৈরি হলে ট্রিগার হবে।
-                // ফাংশনটি callee-এর fcmToken ডাটাবেস থেকে নিয়ে তাকে একটি নোটিফিকেশন পাঠাবে।
-                // উদাহরণস্বরূপ Cloud Function কোড:
-                /*
-                exports.sendCallNotification = functions.database.ref('/activeCalls/{userId}/{callId}')
-                    .onCreate(async (snapshot, context) => {
-                        const callData = snapshot.val();
-                        const userId = context.params.userId;
-                        
-                        const userSnap = await admin.database().ref(`/users/${userId}`).once('value');
-                        const user = userSnap.val();
-
-                        if (user && user.fcmToken) {
-                            const payload = {
-                                notification: {
-                                    title: 'Incoming Call',
-                                    body: `${callData.callerInfo.name} is calling you.`,
-                                    click_action: 'https://your-app-url.com' // আপনার অ্যাপের URL
-                                }
-                            };
-                            await admin.messaging().sendToDevice(user.fcmToken, payload);
-                        }
-                    });
-                */
 
                 showView(isVideo ? 'video-call-view' : 'voice-call-view');
                 updateCallUI(currentCallData.callee, 'Ringing...');
