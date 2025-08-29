@@ -100,9 +100,27 @@
 
         /* Chat View */
         #chat-messages { flex-grow: 1; padding: 1rem; overflow-y: auto; display: flex; flex-direction: column; gap: 0.25rem; }
-        .message-bubble { max-width: 75%; padding: 0.6rem 1rem; border-radius: 18px; word-wrap: break-word; }
+        /* --- MODIFIED --- */
+        .message-bubble { 
+            max-width: 75%; 
+            padding: 0.6rem 1rem; 
+            border-radius: 18px; 
+            word-wrap: break-word; 
+            position: relative; 
+            padding-bottom: 1.5em; /* Space for the status text */
+        }
         .message-sent { align-self: flex-end; background-color: var(--theme-message-out); color: var(--theme-message-out-text); border-bottom-right-radius: 4px; }
         .message-received { align-self: flex-start; background-color: var(--theme-message-in); color: var(--theme-message-in-text); border-bottom-left-radius: 4px; }
+        
+        /* --- NEW --- */
+        .message-status {
+            position: absolute;
+            bottom: 5px;
+            right: 12px;
+            font-size: 0.7em;
+            opacity: 0.8;
+        }
+
         #chat-input-container { display: flex; align-items: center; padding: 0.5rem; gap: 0.5rem; background-color: var(--theme-content-bg); border-top: 1px solid var(--theme-border); }
         #chat-input { flex-grow: 1; padding: 0.8rem; border: none; border-radius: 20px; font-size: 1rem; background-color: var(--theme-bg); }
         #chat-send-btn { background-color: var(--theme-accent); border-radius: 50%; padding: 0.8rem; }
@@ -287,13 +305,13 @@
 
     <script>
         const firebaseConfig = {
-  apiKey: "AIzaSyBVMR27muXlAJ2t8WkxAwTLVVJfpVDP4Zs",
-  authDomain: "calling-app-16370.firebaseapp.com",
-  databaseURL: "https://calling-app-16370-default-rtdb.firebaseio.com",
-  projectId: "calling-app-16370",
-  storageBucket: "calling-app-16370.firebasestorage.app",
-  messagingSenderId: "363225713231",
-  appId: "1:363225713231:web:f1778dbf2846fed71f783a"
+  apiKey: "AIzaSyBkjWUY9kWP28Hgu2HDd9jge_d8-YV5RI4",
+  authDomain: "calling-app-6df8a.firebaseapp.com",
+  databaseURL: "https://calling-app-6df8a-default-rtdb.firebaseio.com",
+  projectId: "calling-app-6df8a",
+  storageBucket: "calling-app-6df8a.firebasestorage.app",
+  messagingSenderId: "756155662995",
+  appId: "1:756155662995:web:46d61e5f14c3224ceac366"
 };
         
         firebase.initializeApp(firebaseConfig);
@@ -322,7 +340,7 @@
             document.getElementById('show-signup').addEventListener('click', () => { document.getElementById('login-form').style.display = 'none'; document.getElementById('signup-form').style.display = 'flex'; });
             document.getElementById('show-login').addEventListener('click', () => { document.getElementById('signup-form').style.display = 'none'; document.getElementById('login-form').style.display = 'flex'; });
             
-            // --- MODIFIED LOGIN HANDLER ---
+            // --- COMPACT LOGIN HANDLER ---
             document.getElementById('login-form').addEventListener('submit', e => {
                 e.preventDefault();
                 const email = document.getElementById('login-email').value;
@@ -472,9 +490,63 @@
             const infoDiv = document.querySelector('#chat-view .contact-info'); infoDiv.innerHTML = `<div class="name">${contact.name}</div><div class="status-text" id="chat-status-${partnerUid}">...</div>`;
             db.ref(`/status/${partnerUid}`).on('value', snap => { const el = document.getElementById(`chat-status-${partnerUid}`); if (el) { const s = snap.val(); if (s && s.isOnline) el.textContent = 'Online'; else if (s) el.textContent = `Last seen ${formatTimeAgo(s.lastSeen)}`; else el.textContent = 'Offline'; } });
             db.ref(`userChats/${currentUser.uid}/${currentChatId}/unreadCount`).set(0);
-            const msgContainer = document.getElementById('chat-messages'); db.ref(`messages/${currentChatId}`).orderByChild('timestamp').on('value', snap => { msgContainer.innerHTML = ''; snap.forEach(child => { const msg = child.val(); const bubble = document.createElement('div'); bubble.className = `message-bubble ${msg.sender === currentUser.uid ? 'message-sent' : 'message-received'}`; bubble.textContent = msg.text; msgContainer.appendChild(bubble); }); msgContainer.scrollTop = msgContainer.scrollHeight; }); showView('chat-view');
+
+            // --- MODIFIED MESSAGE LISTENER ---
+            const msgContainer = document.getElementById('chat-messages'); 
+            db.ref(`messages/${currentChatId}`).orderByChild('timestamp').on('value', snap => { 
+                const updates = {};
+                msgContainer.innerHTML = ''; 
+
+                snap.forEach(child => {
+                    const msg = child.val();
+                    const msgId = child.key;
+
+                    // Mark received and unread messages as read
+                    if (msg.sender !== currentUser.uid && !msg.isRead) {
+                        updates[`/messages/${currentChatId}/${msgId}/isRead`] = true;
+                    }
+
+                    const bubble = document.createElement('div'); 
+                    bubble.className = `message-bubble ${msg.sender === currentUser.uid ? 'message-sent' : 'message-received'}`; 
+                    bubble.textContent = msg.text; 
+
+                    // Add seen/sent status for messages sent by the current user
+                    if (msg.sender === currentUser.uid) {
+                        const statusSpan = document.createElement('span');
+                        statusSpan.className = 'message-status';
+                        statusSpan.textContent = msg.isRead ? 'Seen' : 'Sent';
+                        bubble.appendChild(statusSpan);
+                    }
+                    
+                    msgContainer.appendChild(bubble); 
+                });
+
+                // If there are messages to mark as read, update the database
+                if (Object.keys(updates).length > 0) {
+                    db.ref().update(updates).catch(err => console.error("Failed to mark messages as read:", err));
+                }
+
+                msgContainer.scrollTop = msgContainer.scrollHeight; 
+            }); 
+            showView('chat-view');
         }
-        function sendChatMessage(e) { e.preventDefault(); const input = document.getElementById('chat-input'); const text = input.value.trim(); if (text && currentChatId) { db.ref(`messages/${currentChatId}`).push({ text, sender: currentUser.uid, timestamp: firebase.database.ServerValue.TIMESTAMP }); db.ref(`userChats/${currentChatPartner.uid}/${currentChatId}/unreadCount`).transaction(count => (count || 0) + 1); input.value = ''; } }
+        
+        // --- MODIFIED SEND MESSAGE FUNCTION ---
+        function sendChatMessage(e) { 
+            e.preventDefault(); 
+            const input = document.getElementById('chat-input'); 
+            const text = input.value.trim(); 
+            if (text && currentChatId) { 
+                db.ref(`messages/${currentChatId}`).push({ 
+                    text, 
+                    sender: currentUser.uid, 
+                    timestamp: firebase.database.ServerValue.TIMESTAMP,
+                    isRead: false // Add isRead flag
+                }); 
+                db.ref(`userChats/${currentChatPartner.uid}/${currentChatId}/unreadCount`).transaction(count => (count || 0) + 1); 
+                input.value = ''; 
+            } 
+        }
         
         async function createPeerConnection(callRef, role) {
             peerConnection = new RTCPeerConnection(peerConnectionConfig);
