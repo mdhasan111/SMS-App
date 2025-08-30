@@ -400,6 +400,17 @@
         const db = firebase.database();
         const messaging = firebase.messaging();
 
+        // --- NEW: Service Worker Registration ---
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('/firebase-messaging-sw.js')
+                .then(function(registration) {
+                    console.log('Service Worker registered with scope:', registration.scope);
+                }).catch(function(err) {
+                    console.log('Service Worker registration failed:', err);
+                });
+        }
+
+
         let currentUser = null, currentChatPartner = null, currentChatId = null, currentCallData = null;
         let peerConnection, localStream, remoteStream, callTimerInterval, callStartTime, callTimeoutTimer;
         const peerConnectionConfig = { 'iceServers': [{ 'urls': 'stun:stun.l.google.com:19302' }] };
@@ -465,7 +476,17 @@
         function initializeAppForUser() { setupPresenceSystem(); listenForContacts(); listenForFriendRequests(); listenForIncomingCalls(); setupFCM(); listenForCallLogs(); }
         function cleanupListeners() { if (currentUser) { ['users', 'requests', 'activeCalls', 'status', `userChats/${currentUser.uid}`, `callLogs/${currentUser.uid}`].forEach(path => db.ref(path).off()); if (currentChatId) db.ref(`messages/${currentChatId}`).off(); } }
         function setupPresenceSystem() { const statusRef = db.ref(`/status/${currentUser.uid}`); db.ref('.info/connected').on('value', snap => { if (snap.val() === true) { statusRef.onDisconnect().set({ isOnline: false, lastSeen: firebase.database.ServerValue.TIMESTAMP }).then(() => statusRef.set({ isOnline: true, lastSeen: firebase.database.ServerValue.TIMESTAMP })); } }); }
-        function setupFCM() { messaging.requestPermission().then(() => messaging.getToken()).then(token => db.ref(`users/${currentUser.uid}/fcmToken`).set(token)).catch(err => console.log('Unable to get permission to notify.', err)); }
+        
+        function setupFCM() {
+            messaging.requestPermission()
+                .then(() => messaging.getToken())
+                .then(token => {
+                    console.log("FCM Token:", token);
+                    db.ref(`users/${currentUser.uid}/fcmToken`).set(token);
+                })
+                .catch(err => console.log('Unable to get permission to notify.', err));
+        }
+
 
         async function handleSignUp(e) { e.preventDefault(); const name = document.getElementById('signup-name').value.trim(); const username = document.getElementById('signup-username').value.trim().toLowerCase(); const email = document.getElementById('signup-email').value.trim(); const password = document.getElementById('signup-password').value; const imageUrl = document.getElementById('signup-image-url').value.trim(); const errorEl = document.getElementById('signup-error'); if (!/^[a-z0-9_]{3,15}$/.test(username)) { return errorEl.textContent = "Username: 3-15 chars (a-z, 0-9, _)."; } if (!name) { return errorEl.textContent = "Please enter your full name."; } const usernameSnap = await db.ref(`usernames/${username}`).once('value'); if (usernameSnap.exists()) { return errorEl.textContent = "This username is already taken."; } try { const cred = await auth.createUserWithEmailAndPassword(email, password); const userProfile = { name, username, email, imageUrl: imageUrl || "" }; await db.ref(`users/${cred.user.uid}`).set(userProfile); await db.ref(`usernames/${username}`).set(cred.user.uid); } catch (err) { errorEl.textContent = err.message; } }
         
@@ -486,12 +507,8 @@
 
         async function startCall(isVideo, partner = null) {
             if (currentCallData) return;
-            // Use provided partner or fallback to the current chat partner
             const callPartner = partner || currentChatPartner;
-            if (!callPartner) {
-                console.error("No one to call.");
-                return;
-            }
+            if (!callPartner) { console.error("No one to call."); return; }
 
             const calleeId = callPartner.uid;
             const callRef = db.ref(`activeCalls/${calleeId}`);
@@ -544,7 +561,15 @@
                     modalInfo.querySelector('.name').textContent = currentCallData.caller.name;
                     modalInfo.querySelector('.status').textContent = `Incoming ${callData.isVideo ? 'Video' : 'Voice'} Call...`;
                     showModal('incoming-call-modal');
-                    document.getElementById('ringtone').play();
+                    
+                    // --- Ringtone Fix ---
+                    const ringtone = document.getElementById('ringtone');
+                    const playPromise = ringtone.play();
+                    if (playPromise !== undefined) {
+                        playPromise.catch(error => {
+                            console.error("Ringtone play failed:", error);
+                        });
+                    }
 
                     const hangupListener = incomingCallRef.on('value', (hangupSnap) => {
                         if (!hangupSnap.exists() && document.getElementById('incoming-call-modal').classList.contains('active')) {
@@ -589,7 +614,7 @@
             document.getElementById('ringtone').pause();
             if (currentCallData?.callRef) {
                 currentCallData.callRef.update({ status: 'rejected' });
-                setTimeout(() => currentCallData.callRef.remove(), 500); // Give time for the caller to see the status
+                setTimeout(() => currentCallData.callRef.remove(), 500);
             }
             db.ref(`callLogs/${currentUser.uid}`).push().set({ type: 'missed', with: currentCallData.caller, timestamp: firebase.database.ServerValue.TIMESTAMP, status: 'rejected' });
             currentCallData = null;
@@ -619,7 +644,6 @@
         function toggleVideo(e) { if(localStream && currentCallData?.isVideo) { const track = localStream.getVideoTracks()[0]; track.enabled = !track.enabled; e.currentTarget.classList.toggle('active'); document.getElementById('local-video').style.display = track.enabled ? 'block' : 'none'; } }
         function toggleSpeaker(e) { e.currentTarget.classList.toggle('active'); console.log("Speaker toggle feature not implemented."); }
 
-        // --- Call Log Functions (MODIFIED) ---
         function showCallPanel(panelId) {
             document.querySelectorAll('.calls-panel').forEach(p => p.classList.remove('active'));
             document.getElementById(`${panelId}-calls-panel`).classList.add('active');
@@ -635,15 +659,12 @@
                 dialedContainer.innerHTML = receivedContainer.innerHTML = missedContainer.innerHTML = '';
                 
                 const logs = [];
+                if (!snap.exists()) return;
+
                 snap.forEach(child => logs.push(child.val()));
                 logs.reverse(); // Show most recent first
-
-                if (logs.length === 0) {
-                    dialedContainer.innerHTML = '<p style="padding:20px; text-align:center;">No dialed calls.</p>';
-                    receivedContainer.innerHTML = '<p style="padding:20px; text-align:center;">No received calls.</p>';
-                    missedContainer.innerHTML = '<p style="padding:20px; text-align:center;">No missed calls.</p>';
-                    return;
-                }
+                
+                let hasDialed = false, hasReceived = false, hasMissed = false;
 
                 logs.forEach(log => {
                     let icon;
@@ -651,17 +672,24 @@
                         case 'dialed':
                             icon = `<svg style="fill: var(--theme-success);" viewBox="0 0 24 24"><path d="M20 5.41L18.59 4 7 15.59V9H5v10h10v-2H8.41z"></path></svg>`;
                             dialedContainer.innerHTML += createCallLogItem(log, icon);
+                            hasDialed = true;
                             break;
                         case 'received':
                             icon = `<svg style="fill: var(--theme-primary-text);" viewBox="0 0 24 24"><path d="M20 9v10H5V4h7l-2 2H7v11h11v-7zM18.59 4L7 15.59 8.41 17 20 5.41z"></path></svg>`;
                             receivedContainer.innerHTML += createCallLogItem(log, icon);
+                            hasReceived = true;
                             break;
                         case 'missed':
                             icon = `<svg style="fill: var(--theme-danger);" viewBox="0 0 24 24"><path d="M20 5.41L18.59 4 7 15.59V9H5v10h10v-2H8.41L20 5.41z"></path></svg>`;
                             missedContainer.innerHTML += createCallLogItem(log, icon);
+                            hasMissed = true;
                             break;
                     }
                 });
+
+                if (!hasDialed) dialedContainer.innerHTML = '<p style="padding:20px; text-align:center;">No dialed calls.</p>';
+                if (!hasReceived) receivedContainer.innerHTML = '<p style="padding:20px; text-align:center;">No received calls.</p>';
+                if (!hasMissed) missedContainer.innerHTML = '<p style="padding:20px; text-align:center;">No missed calls.</p>';
             });
         }
 
